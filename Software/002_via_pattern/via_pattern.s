@@ -20,5 +20,5 @@ loop:
     jmp loop
 
     .org $0ffc
-    .word reset
+    .word loop
     .word $0000
