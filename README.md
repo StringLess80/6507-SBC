@@ -1,7 +1,7 @@
 # 6507 SBC
-This repo contains all the files made while building the computer.
+SBC realizzato con il processore 6507 (famiglia del 6502)
 
-### Specs
-- 2 KiB RAM
-- 2 KiB ROM
-- 4 KiB dedicated to other peripherals (6522, (6551?))
+2 KiB RAM
+2 KiB ROM
+interfaccia seriale
+1x 6522 VIA
