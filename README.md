@@ -7,3 +7,5 @@ SBC realizzato con il processore 6507 (famiglia del 6502)
 2 KiB ROM
 interfaccia seriale
 1x 6522 VIA
+
+hexdump -e '"1%03_ax: " 16/1 "%02X " "\n"' <PROGRAMMA>.bin | awk '{print toupper($0)}'
