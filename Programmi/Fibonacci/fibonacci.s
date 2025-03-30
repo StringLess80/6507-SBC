@@ -34,24 +34,26 @@ LOOP:           LDA $00
                 ; Last valid number calculated is still in Fib2, print it
                 LDA $01         
                 JSR PRINT_NUMBER
-                LDA #$20            ; Print a space after the number
-                JSR $1811
+                LDA #$0D            ; A capo
+                JSR $1811           ; CHROUT
+                ;LDA #$20            ; Print a space after the number
+                ;JSR $1811
 
-                ; Print the '>OVFLOW' message
-                LDA #$3E            ; '>'
-                JSR $1811
-                LDA #$4F            ; 'O'
-                JSR $1811
-                LDA #$56            ; 'V'
-                JSR $1811
-                LDA #$46            ; 'F'
-                JSR $1811
-                LDA #$4C            ; 'L'
-                JSR $1811
-                LDA #$4F            ; 'O'
-                JSR $1811
-                LDA #$57            ; 'W'
-                JSR $1811
+                ;; Print the '>OVFLOW' message
+                ;LDA #$3E            ; '>'
+                ;JSR $1811
+                ;LDA #$4F            ; 'O'
+                ;JSR $1811
+                ;LDA #$56            ; 'V'
+                ;JSR $1811
+                ;LDA #$46            ; 'F'
+                ;JSR $1811
+                ;LDA #$4C            ; 'L'
+                ;JSR $1811
+                ;LDA #$4F            ; 'O'
+                ;JSR $1811
+                ;LDA #$57            ; 'W'
+                ;JSR $1811
                 JMP $1EFD           ; Jump back to WozMon
 
 NO_OVERFLOW:    LDA $01             ; Load current Fib2
