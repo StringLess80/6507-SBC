@@ -7,8 +7,8 @@
 ;----------------------------------------------------
 
 ; --- Configurazione ---
-PUTC       = $1811  ; Indirizzo di CHROUT
-GETC       = $1800  ; Indirizzo di CHRIN
+PUTC       = $1811  ; Indirizzo di CHROUT (Stampa Carattere)
+GETC       = $1800  ; Indirizzo di CHRIN (Leggi Carattere)
 
 ; --- Uso Pagina Zero ---
 ZP_PTR     = $FB    ; Byte basso per puntatore stringa
@@ -42,7 +42,7 @@ GET_INPUT_LOOP:
     ; A contiene indice valido 0-8 da un carattere input valido ('1'-'9')
     TAX                ; Usa indice in X
     LDA BOARD,X
-    CMP #SPACE         ; Controlla se la casella è libera (Usare costante SPACE va bene)
+    CMP #SPACE         ; Controlla se la casella è libera
     BNE SQUARE_TAKEN   ; Salta se la casella non è libera
 
     ; Mossa valida e casella libera, indice è in X
@@ -64,7 +64,7 @@ GET_INPUT_LOOP:
 
 SQUARE_TAKEN:          ; Casella Occupata
     JSR PRINT_NEWLINE  ; Aggiungi nuova linea dopo il carattere (posizione non valida) già mostrato con echo
-    LDX #<STR_TAKEN    ; Carica puntatore alla stringa "Casella già occupata!"
+    LDX #<STR_TAKEN    ; Carica puntatore alla stringa "Casella gia' occupata!"
     LDY #>STR_TAKEN
     JSR PRINT_STRING   ; Stampa la stringa
     JSR PRINT_NEWLINE
@@ -75,17 +75,23 @@ GAME_OVER_WIN:         ; Fine Partita - Vittoria
     JSR PRINT_BOARD    ; Mostra tavoliere finale
     JSR PRINT_NEWLINE
     ; Stampa "Giocatore X/O Vince!" usando valori hex
-    LDA #$50           ; 'P'
+    LDA #$47           ; 'G'
     JSR PUTC
-    LDA #$6C           ; 'l'
+    LDA #$69           ; 'i'
+    JSR PUTC
+    LDA #$6F           ; 'o'
+    JSR PUTC
+    LDA #$63           ; 'c'
     JSR PUTC
     LDA #$61           ; 'a'
     JSR PUTC
-    LDA #$79           ; 'y'
+    LDA #$74           ; 't'
     JSR PUTC
-    LDA #$65           ; 'e'
+    LDA #$6F           ; 'o'
     JSR PUTC
     LDA #$72           ; 'r'
+    JSR PUTC
+    LDA #$65           ; 'e'
     JSR PUTC
     LDA #$20           ; ' '
     JSR PUTC
@@ -100,16 +106,16 @@ GAME_OVER_WIN:         ; Fine Partita - Vittoria
 
 GAME_OVER_DRAW:        ; Fine Partita - Pareggio
     JSR PRINT_BOARD    ; Mostra tavoliere finale
-    LDX #<STR_DRAW     ; Carica puntatore stringa "È un pareggio!"
+    LDX #<STR_DRAW     ; Carica puntatore stringa "E' un pareggio!"
     LDY #>STR_DRAW
-    JSR PRINT_STRING   ; Stampa "È un pareggio!"
+    JSR PRINT_STRING   ; Stampa "E' un pareggio!"
     ; Passa a END_GAME (senza JMP esplicito)
 
 END_GAME:              ; Fine Gioco
     JSR PRINT_NEWLINE
     JSR PRINT_NEWLINE
 HALT:
-    BRK                ; Usa BRK o JMP HALT per uno stop semplice
+    BRK                ; Ferma l'esecuzione (o attiva il monitor)
     ; JMP HALT
 
 ;----------------------------------------------------
@@ -118,11 +124,11 @@ HALT:
 INIT_GAME:
     LDX #8             ; Indice per il loop (da 8 a 0)
 INIT_LOOP:
-    LDA #SPACE         ; Carica carattere spazio (Usa costante SPACE = $20)
+    LDA #SPACE         ; Carica carattere spazio ($20)
     STA BOARD,X        ; Salva nella posizione X del tavoliere
     DEX                ; Decrementa indice
     BPL INIT_LOOP      ; Continua finché X >= 0
-    LDA #PLAYER_X      ; Inizia con il giocatore X (Usa costante PLAYER_X = $58)
+    LDA #PLAYER_X      ; Inizia con il giocatore X ($58)
     STA CURPLAYER      ; Salva giocatore corrente
     RTS                ; Ritorna dalla subroutine
 
@@ -366,9 +372,9 @@ PRINT_DONE:
 ; Sottoprogramma: PRINT_NEWLINE (Stampa ritorno a capo + nuova linea)
 ;----------------------------------------------------
 PRINT_NEWLINE:
-    LDA #CR            ; Carica Ritorno a Capo (Usa costante CR = $0D)
+    LDA #CR            ; Carica Ritorno a Capo ($0D)
     JSR PUTC
-    LDA #LF            ; Carica Nuova Linea (Usa costante LF = $0A)
+    LDA #LF            ; Carica Nuova Linea ($0A)
     JSR PUTC
     RTS
 
@@ -377,11 +383,13 @@ PRINT_NEWLINE:
 ;----------------------------------------------------
 CURPLAYER:  .BYTE PLAYER_X ; $58 - Giocatore Corrente
 BOARD:      .DS 9            ; 9 byte per il tavoliere (Definisci Spazio)
-STR_PLAYER: .BYTE $50,$6C,$61,$79,$65,$72,$20, 0 ; "Giocatore "
-STR_TURN:   .BYTE $2C,$20,$65,$6E,$74,$65,$72,$20,$6D,$6F,$76,$65,$20,$28,$31,$2D,$39,$29,$3A,$20, 0 ; ", inserisci mossa (1-9): "
-STR_SEPARATOR:.BYTE $2D,$2D,$2D,$2B,$2D,$2D,$2D,$2B,$2D,$2D,$2D, 0 ; "---+---+---"
-STR_WINS:   .BYTE $20,$57,$69,$6E,$73,$21, 0 ; " Vince!"
-STR_DRAW:   .BYTE $49,$74,$27,$73,$20,$61,$20,$64,$72,$61,$77,$21, 0 ; "È un pareggio!"
-STR_TAKEN:  .BYTE $53,$71,$75,$61,$72,$65,$20,$61,$6C,$72,$65,$61,$64,$79,$20,$74,$61,$6B,$65,$6E,$21, 0 ; "Casella già occupata!"
+
+; --- Stringhe Messaggi (Italiano, ASCII 7-bit) ---
+STR_PLAYER: .BYTE $47,$69,$6F,$63,$61,$74,$6F,$72,$65,$20, 0 ; "Giocatore "
+STR_TURN:   .BYTE $2C,$20,$69,$6E,$73,$65,$72,$69,$73,$63,$69,$20,$6D,$6F,$73,$73,$61,$20,$28,$31,$2D,$39,$29,$3A,$20, 0 ; ", inserisci mossa (1-9): "
+STR_SEPARATOR:.BYTE $2D,$2D,$2D,$2B,$2D,$2D,$2D,$2B,$2D,$2D,$2D, 0 ; "---+---+---" (Grafico, mantenuto)
+STR_WINS:   .BYTE $20,$56,$69,$6E,$63,$65,$21, 0 ; " Vince!"
+STR_DRAW:   .BYTE $45,$27,$20,$75,$6E,$20,$70,$61,$72,$65,$67,$67,$69,$6F,$21, 0 ; "E' un pareggio!"
+STR_TAKEN:  .BYTE $43,$61,$73,$65,$6C,$6C,$61,$20,$67,$69,$61,$27,$20,$6F,$63,$63,$75,$70,$61,$74,$61,$21, 0 ; "Casella gia' occupata!"
 
 ; --- Fine Programma ---
