@@ -1,7 +1,7 @@
 ;----------------------------------------------------
 ; 6502 Tic-Tac-Toe for Serial Terminal
 ; By: Claude 4 / Anthropic (via User Request)
-; Date: 2023-10-27 (Revised for VASM Oldstyle Syntax)
+; Date: 2023-10-27 (Revised for VASM Oldstyle Syntax v2)
 ;
 ; Load Address: $0500
 ; Char Print Routine (CHROUT): $1811 (expects char in A)
@@ -21,6 +21,7 @@ TEMP1      = $FD    ; General purpose temp storage
 ; --- Constants ---
 PLAYER_X   = $58    ; ASCII 'X'
 PLAYER_O   = $4F    ; ASCII 'O'
+FLIP_MASK  = $17    ; Value for PLAYER_X EOR PLAYER_O
 SPACE      = $20    ; ASCII ' '
 CR         = $0D    ; Carriage Return
 LF         = $0A    ; Line Feed
@@ -95,14 +96,14 @@ GAME_OVER_WIN:
     JSR PUTC
     LDA #$20           ; ' '
     JSR PUTC
-    LDX #<STR_WINS     ; Print " Wins!" (string uses .BYTE, OK)
+    LDX #<STR_WINS     ; Print " Wins!"
     LDY #>STR_WINS
     JSR PRINT_STRING
     JMP END_GAME
 
 GAME_OVER_DRAW:
     JSR PRINT_BOARD    ; Show final board
-    LDX #<STR_DRAW     ; Print "It's a draw!" (string uses .BYTE, OK)
+    LDX #<STR_DRAW     ; Print "It's a draw!"
     LDY #>STR_DRAW
     JSR PRINT_STRING
     ; Fall through to END_GAME
@@ -337,7 +338,7 @@ NOT_DRAW:
 ;----------------------------------------------------
 SWITCH_PLAYER:
     LDA CURPLAYER
-    EOR #(PLAYER_X EOR PLAYER_O) ; Flip between X($58) and O ($4F)
+    EOR #FLIP_MASK     ; Use pre-calculated mask $17
     STA CURPLAYER
     RTS
 
@@ -353,8 +354,7 @@ PRINT_LOOP:
     BEQ PRINT_DONE
     JSR PUTC
     INY
-    BNE PRINT_LOOP     ; Note: Assumes string won't cross page boundary AND Y wraps
-                       ; For strings > 255 bytes or crossing page, more complex logic needed
+    BNE PRINT_LOOP     ; Assumes string < 256 bytes / no page cross needed
 PRINT_DONE:
     RTS
 
@@ -372,7 +372,7 @@ PRINT_NEWLINE:
 ; Data Area
 ;----------------------------------------------------
 CURPLAYER:  .BYTE PLAYER_X ; $58
-BOARD:      .RES 9
+BOARD:      .DS 9            ; Define Storage (replaced .RES)
 STR_PLAYER: .BYTE $50,$6C,$61,$79,$65,$72,$20, 0 ; "Player "
 STR_TURN:   .BYTE $2C,$20,$65,$6E,$74,$65,$72,$20,$6D,$6F,$76,$65,$20,$28,$31,$2D,$39,$29,$3A,$20, 0 ; ", enter move (1-9): "
 STR_SEPARATOR:.BYTE $2D,$2D,$2D,$2B,$2D,$2D,$2D,$2B,$2D,$2D,$2D, 0 ; "---+---+---"
