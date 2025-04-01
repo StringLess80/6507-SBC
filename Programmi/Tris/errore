@@ -1,0 +1,95 @@
+vasm 1.9d (c) in 2002-2023 Volker Barthelmann
+vasm 6502 cpu backend 0.12 (c) 2002,2006,2008-2012,2014-2023 Frank Wille
+vasm oldstyle syntax module 0.18a (c) 2002-2023 Frank Wille
+vasm binary output module 2.2 (c) 2002-2023 Volker Barthelmann and Frank Wille
+
+warning 2002 in line 59 of "tris.s": trailing garbage in operand
+>    LDX #<STR_TAKEN | LDY #>STR_TAKEN | JSR PRINT_STRING
+
+warning 2002 in line 125 of "tris.s": trailing garbage in operand
+>    LDA BOARD+0 | JSR PUTC
+
+warning 2002 in line 126 of "tris.s": trailing garbage in operand
+>    LDA #$20 | JSR PUTC | LDA #$7C | JSR PUTC | LDA #$20 | JSR PUTC ; ' | '
+
+warning 2002 in line 127 of "tris.s": trailing garbage in operand
+>    LDA BOARD+1 | JSR PUTC
+
+warning 2002 in line 128 of "tris.s": trailing garbage in operand
+>    LDA #$20 | JSR PUTC | LDA #$7C | JSR PUTC | LDA #$20 | JSR PUTC ; ' | '
+
+warning 2002 in line 129 of "tris.s": trailing garbage in operand
+>    LDA BOARD+2 | JSR PUTC | JSR PRINT_NEWLINE
+
+warning 2002 in line 131 of "tris.s": trailing garbage in operand
+>    LDX #<STR_SEPARATOR | LDY #>STR_SEPARATOR | JSR PRINT_STRING | JSR PRINT_NEWLINE
+
+warning 2002 in line 133 of "tris.s": trailing garbage in operand
+>    LDA BOARD+3 | JSR PUTC
+
+warning 2002 in line 134 of "tris.s": trailing garbage in operand
+>    LDA #$20 | JSR PUTC | LDA #$7C | JSR PUTC | LDA #$20 | JSR PUTC ; ' | '
+
+warning 2002 in line 135 of "tris.s": trailing garbage in operand
+>    LDA BOARD+4 | JSR PUTC
+
+warning 2002 in line 136 of "tris.s": trailing garbage in operand
+>    LDA #$20 | JSR PUTC | LDA #$7C | JSR PUTC | LDA #$20 | JSR PUTC ; ' | '
+
+warning 2002 in line 137 of "tris.s": trailing garbage in operand
+>    LDA BOARD+5 | JSR PUTC | JSR PRINT_NEWLINE
+
+warning 2002 in line 139 of "tris.s": trailing garbage in operand
+>    LDX #<STR_SEPARATOR | LDY #>STR_SEPARATOR | JSR PRINT_STRING | JSR PRINT_NEWLINE
+
+warning 2002 in line 141 of "tris.s": trailing garbage in operand
+>    LDA BOARD+6 | JSR PUTC
+
+warning 2002 in line 142 of "tris.s": trailing garbage in operand
+>    LDA #$20 | JSR PUTC | LDA #$7C | JSR PUTC | LDA #$20 | JSR PUTC ; ' | '
+
+warning 2002 in line 143 of "tris.s": trailing garbage in operand
+>    LDA BOARD+7 | JSR PUTC
+
+warning 2002 in line 144 of "tris.s": trailing garbage in operand
+>    LDA #$20 | JSR PUTC | LDA #$7C | JSR PUTC | LDA #$20 | JSR PUTC ; ' | '
+
+warning 2002 in line 145 of "tris.s": trailing garbage in operand
+>    LDA BOARD+8 | JSR PUTC | JSR PRINT_NEWLINE
+
+warning 2002 in line 153 of "tris.s": trailing garbage in operand
+>    LDX #<STR_PLAYER | LDY #>STR_PLAYER | JSR PRINT_STRING
+
+warning 2002 in line 154 of "tris.s": trailing garbage in operand
+>    LDA CURPLAYER | JSR PUTC
+
+warning 2002 in line 155 of "tris.s": trailing garbage in operand
+>    LDX #<STR_TURN | LDY #>STR_TURN | JSR PRINT_STRING
+
+error 1 in line 188 of "tris.s": illegal operand types
+>    TAX | LDA CURPLAYER | STA BOARD,X
+
+warning 1007 in line 196 of "tris.s": garbage at end of line
+>CHECK_ROW_LOOP: LDA BOARD+0,X | CMP #SPACE | BEQ NEXT_ROW | CMP BOARD+1,X | BNE NEXT_ROW | CMP BOARD+2,X | BNE NEXT_ROW | RTS
+
+warning 2002 in line 196 of "tris.s": trailing garbage in operand
+>CHECK_ROW_LOOP: LDA BOARD+0,X | CMP #SPACE | BEQ NEXT_ROW | CMP BOARD+1,X | BNE NEXT_ROW | CMP BOARD+2,X | BNE NEXT_ROW | RTS
+
+error 9 in line 196 of "tris.s": instruction not supported on selected architecture
+>CHECK_ROW_LOOP: LDA BOARD+0,X | CMP #SPACE | BEQ NEXT_ROW | CMP BOARD+1,X | BNE NEXT_ROW | CMP BOARD+2,X | BNE NEXT_ROW | RTS
+
+error 1 in line 197 of "tris.s": illegal operand types
+>NEXT_ROW:       TXA | CLC | ADC #3 | TAX | CPX #9 | BCC CHECK_ROW_LOOP
+
+warning 1007 in line 199 of "tris.s": garbage at end of line
+>CHECK_COL_LOOP: LDA BOARD+0,X | CMP #SPACE | BEQ NEXT_COL | CMP BOARD+3,X | BNE NEXT_COL | CMP BOARD+6,X | BNE NEXT_COL | RTS
+
+warning 2002 in line 199 of "tris.s": trailing garbage in operand
+>CHECK_COL_LOOP: LDA BOARD+0,X | CMP #SPACE | BEQ NEXT_COL | CMP BOARD+3,X | BNE NEXT_COL | CMP BOARD+6,X | BNE NEXT_COL | RTS
+
+error 9 in line 199 of "tris.s": instruction not supported on selected architecture
+>CHECK_COL_LOOP: LDA BOARD+0,X | CMP #SPACE | BEQ NEXT_COL | CMP BOARD+3,X | BNE NEXT_COL | CMP BOARD+6,X | BNE NEXT_COL | RTS
+
+error 1 in line 200 of "tris.s": illegal operand types
+>NEXT_COL:       INX | CPX #3 | BCC CHECK_COL_LOOP
+***maximum number of errors reached!***
