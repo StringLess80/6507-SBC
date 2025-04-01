@@ -1,3 +1,13 @@
+;----------------------------------------------------
+; 6502 Tic-Tac-Toe for Serial Terminal
+; By: Claude 4 / Anthropic (via User Request)
+; Date: 2023-10-27 (Revised for VASM Oldstyle Syntax)
+;
+; Load Address: $0500
+; Char Print Routine (CHROUT): $1811 (expects char in A)
+; Char Input Routine (CHRIN):  $1800 (non-blocking, echoes, uses Carry)
+;----------------------------------------------------
+
 ; --- Configuration ---
 PUTC       = $1811  ; Address of CHROUT
 GETC       = $1800  ; Address of CHRIN
@@ -56,7 +66,9 @@ GET_INPUT_LOOP:
 
 SQUARE_TAKEN:
     JSR PRINT_NEWLINE ; Add newline after the echoed invalid position char
-    LDX #<STR_TAKEN | LDY #>STR_TAKEN | JSR PRINT_STRING
+    LDX #<STR_TAKEN
+    LDY #>STR_TAKEN
+    JSR PRINT_STRING
     JSR PRINT_NEWLINE
     JMP GAME_LOOP
 
@@ -108,11 +120,11 @@ HALT:
 INIT_GAME:
     LDX #8
 INIT_LOOP:
-    LDA #SPACE         ; Use constant SPACE = $20, OK
+    LDA #SPACE         ; Use constant SPACE = $20
     STA BOARD,X
     DEX
     BPL INIT_LOOP
-    LDA #PLAYER_X      ; Use constant PLAYER_X = $58, OK
+    LDA #PLAYER_X      ; Use constant PLAYER_X = $58
     STA CURPLAYER
     RTS
 
@@ -122,27 +134,75 @@ INIT_LOOP:
 PRINT_BOARD:
     JSR PRINT_NEWLINE
     ; Row 0
-    LDA BOARD+0 | JSR PUTC
-    LDA #$20 | JSR PUTC | LDA #$7C | JSR PUTC | LDA #$20 | JSR PUTC ; ' | '
-    LDA BOARD+1 | JSR PUTC
-    LDA #$20 | JSR PUTC | LDA #$7C | JSR PUTC | LDA #$20 | JSR PUTC ; ' | '
-    LDA BOARD+2 | JSR PUTC | JSR PRINT_NEWLINE
+    LDA BOARD+0
+    JSR PUTC
+    LDA #$20  ; ' '
+    JSR PUTC
+    LDA #$7C  ; '|'
+    JSR PUTC
+    LDA #$20  ; ' '
+    JSR PUTC
+    LDA BOARD+1
+    JSR PUTC
+    LDA #$20  ; ' '
+    JSR PUTC
+    LDA #$7C  ; '|'
+    JSR PUTC
+    LDA #$20  ; ' '
+    JSR PUTC
+    LDA BOARD+2
+    JSR PUTC
+    JSR PRINT_NEWLINE
     ; Separator
-    LDX #<STR_SEPARATOR | LDY #>STR_SEPARATOR | JSR PRINT_STRING | JSR PRINT_NEWLINE
+    LDX #<STR_SEPARATOR
+    LDY #>STR_SEPARATOR
+    JSR PRINT_STRING
+    JSR PRINT_NEWLINE
     ; Row 1
-    LDA BOARD+3 | JSR PUTC
-    LDA #$20 | JSR PUTC | LDA #$7C | JSR PUTC | LDA #$20 | JSR PUTC ; ' | '
-    LDA BOARD+4 | JSR PUTC
-    LDA #$20 | JSR PUTC | LDA #$7C | JSR PUTC | LDA #$20 | JSR PUTC ; ' | '
-    LDA BOARD+5 | JSR PUTC | JSR PRINT_NEWLINE
+    LDA BOARD+3
+    JSR PUTC
+    LDA #$20  ; ' '
+    JSR PUTC
+    LDA #$7C  ; '|'
+    JSR PUTC
+    LDA #$20  ; ' '
+    JSR PUTC
+    LDA BOARD+4
+    JSR PUTC
+    LDA #$20  ; ' '
+    JSR PUTC
+    LDA #$7C  ; '|'
+    JSR PUTC
+    LDA #$20  ; ' '
+    JSR PUTC
+    LDA BOARD+5
+    JSR PUTC
+    JSR PRINT_NEWLINE
     ; Separator
-    LDX #<STR_SEPARATOR | LDY #>STR_SEPARATOR | JSR PRINT_STRING | JSR PRINT_NEWLINE
+    LDX #<STR_SEPARATOR
+    LDY #>STR_SEPARATOR
+    JSR PRINT_STRING
+    JSR PRINT_NEWLINE
     ; Row 2
-    LDA BOARD+6 | JSR PUTC
-    LDA #$20 | JSR PUTC | LDA #$7C | JSR PUTC | LDA #$20 | JSR PUTC ; ' | '
-    LDA BOARD+7 | JSR PUTC
-    LDA #$20 | JSR PUTC | LDA #$7C | JSR PUTC | LDA #$20 | JSR PUTC ; ' | '
-    LDA BOARD+8 | JSR PUTC | JSR PRINT_NEWLINE
+    LDA BOARD+6
+    JSR PUTC
+    LDA #$20  ; ' '
+    JSR PUTC
+    LDA #$7C  ; '|'
+    JSR PUTC
+    LDA #$20  ; ' '
+    JSR PUTC
+    LDA BOARD+7
+    JSR PUTC
+    LDA #$20  ; ' '
+    JSR PUTC
+    LDA #$7C  ; '|'
+    JSR PUTC
+    LDA #$20  ; ' '
+    JSR PUTC
+    LDA BOARD+8
+    JSR PUTC
+    JSR PRINT_NEWLINE
     JSR PRINT_NEWLINE
     RTS
 
@@ -150,9 +210,14 @@ PRINT_BOARD:
 ; Subroutine: PRINT_PROMPT
 ;----------------------------------------------------
 PRINT_PROMPT:
-    LDX #<STR_PLAYER | LDY #>STR_PLAYER | JSR PRINT_STRING
-    LDA CURPLAYER | JSR PUTC
-    LDX #<STR_TURN | LDY #>STR_TURN | JSR PRINT_STRING
+    LDX #<STR_PLAYER
+    LDY #>STR_PLAYER
+    JSR PRINT_STRING
+    LDA CURPLAYER
+    JSR PUTC
+    LDX #<STR_TURN
+    LDY #>STR_TURN
+    JSR PRINT_STRING
     RTS
 
 ;----------------------------------------------------
@@ -185,7 +250,9 @@ INVALID_CHAR:
 ; Subroutine: UPDATE_BOARD
 ;----------------------------------------------------
 UPDATE_BOARD:
-    TAX | LDA CURPLAYER | STA BOARD,X
+    TAX
+    LDA CURPLAYER
+    STA BOARD,X
     RTS
 
 ;----------------------------------------------------
@@ -193,44 +260,112 @@ UPDATE_BOARD:
 ;----------------------------------------------------
 CHECK_WIN:
     LDX #0
-CHECK_ROW_LOOP: LDA BOARD+0,X | CMP #SPACE | BEQ NEXT_ROW | CMP BOARD+1,X | BNE NEXT_ROW | CMP BOARD+2,X | BNE NEXT_ROW | RTS
-NEXT_ROW:       TXA | CLC | ADC #3 | TAX | CPX #9 | BCC CHECK_ROW_LOOP
+CHECK_ROW_LOOP:
+    LDA BOARD+0,X
+    CMP #SPACE
+    BEQ NEXT_ROW
+    CMP BOARD+1,X
+    BNE NEXT_ROW
+    CMP BOARD+2,X
+    BNE NEXT_ROW
+    RTS                ; Winner was already in A from LDA BOARD+0,X
+NEXT_ROW:
+    TXA
+    CLC
+    ADC #3
+    TAX
+    CPX #9
+    BCC CHECK_ROW_LOOP
+
     LDX #0
-CHECK_COL_LOOP: LDA BOARD+0,X | CMP #SPACE | BEQ NEXT_COL | CMP BOARD+3,X | BNE NEXT_COL | CMP BOARD+6,X | BNE NEXT_COL | RTS
-NEXT_COL:       INX | CPX #3 | BCC CHECK_COL_LOOP
-    LDA BOARD+0 | CMP #SPACE | BEQ CHK_D2 | CMP BOARD+4 | BNE CHK_D2 | CMP BOARD+8 | BNE CHK_D2 | RTS
-CHK_D2: LDA BOARD+2 | CMP #SPACE | BEQ NO_WIN | CMP BOARD+4 | BNE NO_WIN | CMP BOARD+6 | BNE NO_WIN | RTS
-NO_WIN: LDA #SPACE | RTS
+CHECK_COL_LOOP:
+    LDA BOARD+0,X
+    CMP #SPACE
+    BEQ NEXT_COL
+    CMP BOARD+3,X
+    BNE NEXT_COL
+    CMP BOARD+6,X
+    BNE NEXT_COL
+    RTS                ; Winner was already in A from LDA BOARD+0,X
+NEXT_COL:
+    INX
+    CPX #3
+    BCC CHECK_COL_LOOP
+
+    ; Diagonal 1 (0, 4, 8)
+    LDA BOARD+0
+    CMP #SPACE
+    BEQ CHK_D2
+    CMP BOARD+4
+    BNE CHK_D2
+    CMP BOARD+8
+    BNE CHK_D2
+    RTS                ; Winner was already in A from LDA BOARD+0
+CHK_D2:
+    ; Diagonal 2 (2, 4, 6)
+    LDA BOARD+2
+    CMP #SPACE
+    BEQ NO_WIN
+    CMP BOARD+4
+    BNE NO_WIN
+    CMP BOARD+6
+    BNE NO_WIN
+    RTS                ; Winner was already in A from LDA BOARD+2
+NO_WIN:
+    LDA #SPACE
+    RTS
 
 ;----------------------------------------------------
 ; Subroutine: CHECK_DRAW
 ;----------------------------------------------------
 CHECK_DRAW:
     LDX #8
-CHECK_DRAW_LOOP: LDA BOARD,X | CMP #SPACE | BEQ NOT_DRAW | DEX | BPL CHECK_DRAW_LOOP
-    SEC | RTS
-NOT_DRAW: CLC | RTS
+CHECK_DRAW_LOOP:
+    LDA BOARD,X
+    CMP #SPACE
+    BEQ NOT_DRAW
+    DEX
+    BPL CHECK_DRAW_LOOP
+    SEC                ; Set Carry for draw
+    RTS
+NOT_DRAW:
+    CLC                ; Clear Carry, not a draw
+    RTS
 
 ;----------------------------------------------------
 ; Subroutine: SWITCH_PLAYER
 ;----------------------------------------------------
 SWITCH_PLAYER:
-    LDA CURPLAYER | EOR #(PLAYER_X EOR PLAYER_O) | STA CURPLAYER
+    LDA CURPLAYER
+    EOR #(PLAYER_X EOR PLAYER_O) ; Flip between X($58) and O ($4F)
+    STA CURPLAYER
     RTS
 
 ;----------------------------------------------------
 ; Subroutine: PRINT_STRING
 ;----------------------------------------------------
 PRINT_STRING:
-    STX ZP_PTR | STY ZP_PTR_HI | LDY #0
-PRINT_LOOP: LDA (ZP_PTR),Y | BEQ PRINT_DONE | JSR PUTC | INY | BNE PRINT_LOOP
-PRINT_DONE: RTS
+    STX ZP_PTR
+    STY ZP_PTR_HI
+    LDY #0
+PRINT_LOOP:
+    LDA (ZP_PTR),Y
+    BEQ PRINT_DONE
+    JSR PUTC
+    INY
+    BNE PRINT_LOOP     ; Note: Assumes string won't cross page boundary AND Y wraps
+                       ; For strings > 255 bytes or crossing page, more complex logic needed
+PRINT_DONE:
+    RTS
 
 ;----------------------------------------------------
-; Subroutine: PRINT_NEWLINE (corrected name usage earlier)
+; Subroutine: PRINT_NEWLINE
 ;----------------------------------------------------
 PRINT_NEWLINE:
-    LDA #CR | JSR PUTC | LDA #LF | JSR PUTC ; Use constants OK
+    LDA #CR            ; Use constant CR = $0D
+    JSR PUTC
+    LDA #LF            ; Use constant LF = $0A
+    JSR PUTC
     RTS
 
 ;----------------------------------------------------
@@ -238,11 +373,11 @@ PRINT_NEWLINE:
 ;----------------------------------------------------
 CURPLAYER:  .BYTE PLAYER_X ; $58
 BOARD:      .RES 9
-STR_PLAYER: .BYTE "Player ", 0
-STR_TURN:   .BYTE ", enter move (1-9): ", 0
-STR_SEPARATOR:.BYTE "---+---+---", 0
-STR_WINS:   .BYTE " Wins!", 0
-STR_DRAW:   .BYTE "It's a draw!", 0
-STR_TAKEN:  .BYTE "Square already taken!", 0
+STR_PLAYER: .BYTE $50,$6C,$61,$79,$65,$72,$20, 0 ; "Player "
+STR_TURN:   .BYTE $2C,$20,$65,$6E,$74,$65,$72,$20,$6D,$6F,$76,$65,$20,$28,$31,$2D,$39,$29,$3A,$20, 0 ; ", enter move (1-9): "
+STR_SEPARATOR:.BYTE $2D,$2D,$2D,$2B,$2D,$2D,$2D,$2B,$2D,$2D,$2D, 0 ; "---+---+---"
+STR_WINS:   .BYTE $20,$57,$69,$6E,$73,$21, 0 ; " Wins!"
+STR_DRAW:   .BYTE $49,$74,$27,$73,$20,$61,$20,$64,$72,$61,$77,$21, 0 ; "It's a draw!"
+STR_TAKEN:  .BYTE $53,$71,$75,$61,$72,$65,$20,$61,$6C,$72,$65,$61,$64,$79,$20,$74,$61,$6B,$65,$6E,$21, 0 ; "Square already taken!"
 
 ; --- End of Program ---
