@@ -1,395 +1,366 @@
 ;----------------------------------------------------
-; Tic-Tac-Toe (Tris) per 6502 per Terminale Seriale
-; Realizzato da: Alessandro Iglina
-; Data: 2025-04-01
+; Tic-Tac-Toe (Tris) for 6502 via Serial Terminal
+; Author: Alessandro Iglina
+; Date: 2025-04-01 / Revision 2025-04-03 (Added subroutine comments)
 ;
-; Indirizzo di Caricamento: $0500
+; Load Address: $0500
 ;----------------------------------------------------
 
-; --- Configurazione ---
-PUTC       = $1811  ; Indirizzo di CHROUT (Stampa Carattere)
-GETC       = $1800  ; Indirizzo di CHRIN (Leggi Carattere)
+; --- Configuration ---
+PUTC            = $1811             ; Address of CHROUT (Print Character)
+GETC            = $1800             ; Address of CHRIN (Read Character)
+                                    ; **ASSUMPTION: Routine at GETC is non-blocking, echoes,**
+                                    ; **returns char in A & SEC on success, CLC if no key.**
 
-; --- Uso Pagina Zero ---
-ZP_PTR     = $FB    ; Byte basso per puntatore stringa
-ZP_PTR_HI  = $FC    ; Byte alto per puntatore stringa
-TEMP1      = $FD    ; Memoria temporanea generica
+; --- Zero Page Usage ---
+ZP_PTR          = $FB               ; Low byte for string pointer
+ZP_PTR_HI       = $FC               ; High byte for string pointer
+ZP_TEMP1        = $FD               ; General temporary storage (e.g., saving winner)
+ZP_CURPLAYER    = $FE               ; Current player ('X' or 'O') - Optimized in ZP
 
-; --- Costanti ---
-PLAYER_X   = $58    ; ASCII 'X'
-PLAYER_O   = $4F    ; ASCII 'O'
-FLIP_MASK  = $17    ; Valore per PLAYER_X EOR PLAYER_O
-SPACE      = $20    ; ASCII ' ' (spazio)
-CR         = $0D    ; Ritorno a Capo (Carriage Return)
-LF         = $0A    ; Nuova Linea (Line Feed)
+; --- Constants ---
+PLAYER_X        = $58               ; ASCII 'X'
+PLAYER_O        = $4F               ; ASCII 'O'
+FLIP_MASK       = $17               ; Value for PLAYER_X XOR PLAYER_O ($58 EOR $4F)
+SPACE           = $20               ; ASCII ' ' (space)
+CR              = $0D               ; Carriage Return
+LF              = $0A               ; Line Feed
 
-; --- Inizio Programma ---
-           * = $0500
 
-START:
-    JSR INIT_GAME      ; Inizializza il gioco
+                * = $0500
 
-GAME_LOOP:
-    JSR PRINT_BOARD    ; Stampa il tavoliere
-    JSR PRINT_PROMPT   ; Stampa il prompt per il giocatore
-GET_INPUT_LOOP:
-    JSR GET_MOVE       ; Attende input usando loop CHRIN.
-                       ; Ritorna indice 0-8 in A se valido '1'-'9',
-                       ; o $FF altrimenti. CHRIN gestisce l'echo.
-    CMP #$FF           ; Controlla se GET_MOVE ha segnalato tipo invalido
-    BEQ GET_INPUT_LOOP ; Se $FF, torna indietro a prendere un altro carattere
+START:          JSR INIT_GAME       ; Initialize the game state (board, player)
 
-    ; A contiene indice valido 0-8 da un carattere input valido ('1'-'9')
-    TAX                ; Usa indice in X
-    LDA BOARD,X
-    CMP #SPACE         ; Controlla se la casella è libera
-    BNE SQUARE_TAKEN   ; Salta se la casella non è libera
+; --- Main Game Loop ---
+GAME_LOOP:      JSR PRINT_BOARD     ; Display the current game board
+                JSR PRINT_PROMPT    ; Display the prompt for the current player
 
-    ; Mossa valida e casella libera, indice è in X
-    TXA                ; Rimetti l'indice in A per UPDATE_BOARD
-    JSR UPDATE_BOARD   ; Piazza il simbolo
+WAIT_FOR_INPUT: JSR GET_MOVE        ; Get a valid move ('1'-'9') from the player. Loops internally
+                                    ; until valid input is received. Returns 0-8 in A.
 
-    ; Controlla se c'è una vittoria
-    JSR CHECK_WIN      ; Ritorna vincitore (X/O) in A, o SPAZIO se non c'è ancora vittoria
-    CMP #SPACE
-    BNE GAME_OVER_WIN  ; Salta se qualcuno ha vinto
+                ; A contains a valid board index 0-8 from GET_MOVE
+                TAX                 ; Use the index in X for addressing
+                LDA BOARD,X         ; Check if the target square on the board is empty
+                CMP #SPACE
+                BNE SQUARE_TAKEN    ; If not empty, jump to handle occupied square error
 
-    ; Controlla se c'è un pareggio
-    JSR CHECK_DRAW     ; Imposta Carry se pareggio, Pulisce Carry altrimenti
-    BCS GAME_OVER_DRAW ; Salta se è pareggio
+                ; Square is free, proceed with the move
+                TXA                 ; Restore index from X back to A
+                JSR UPDATE_BOARD    ; Place the current player's mark on the board
 
-    ; Nessuna vittoria, nessun pareggio - cambia giocatore e continua
-    JSR SWITCH_PLAYER
-    JMP GAME_LOOP
+                ; Check for game end conditions
+                JSR CHECK_WIN       ; Check if the current move resulted in a win
+                CMP #SPACE          ; Did CHECK_WIN return a player mark (X/O)?
+                BNE GAME_OVER_WIN   ; If yes (not SPACE), jump to handle win
 
-SQUARE_TAKEN:          ; Casella Occupata
-    JSR PRINT_NEWLINE  ; Aggiungi nuova linea dopo il carattere (posizione non valida) già mostrato con echo
-    LDX #<STR_TAKEN    ; Carica puntatore alla stringa "Casella gia' occupata!"
-    LDY #>STR_TAKEN
-    JSR PRINT_STRING   ; Stampa la stringa
-    JSR PRINT_NEWLINE
-    JMP GAME_LOOP      ; Torna al loop principale (ristampa tavoliere/prompt)
+                JSR CHECK_DRAW      ; Check if the board is full (a draw)
+                BCS GAME_OVER_DRAW  ; If Carry is set (draw), jump to handle draw
 
-GAME_OVER_WIN:         ; Fine Partita - Vittoria
-    STA TEMP1          ; Salva vincitore (contiene $58 o $4F)
-    JSR PRINT_BOARD    ; Mostra tavoliere finale
-    JSR PRINT_NEWLINE
-    ; Stampa "Giocatore X/O Vince!" usando valori hex
-    LDA #$47           ; 'G'
-    JSR PUTC
-    LDA #$69           ; 'i'
-    JSR PUTC
-    LDA #$6F           ; 'o'
-    JSR PUTC
-    LDA #$63           ; 'c'
-    JSR PUTC
-    LDA #$61           ; 'a'
-    JSR PUTC
-    LDA #$74           ; 't'
-    JSR PUTC
-    LDA #$6F           ; 'o'
-    JSR PUTC
-    LDA #$72           ; 'r'
-    JSR PUTC
-    LDA #$65           ; 'e'
-    JSR PUTC
-    LDA #$20           ; ' '
-    JSR PUTC
-    LDA TEMP1          ; Prendi il simbolo del vincitore ($58 o $4F)
-    JSR PUTC
-    LDA #$20           ; ' '
-    JSR PUTC
-    LDX #<STR_WINS     ; Carica puntatore stringa " Vince!"
-    LDY #>STR_WINS
-    JSR PRINT_STRING   ; Stampa " Vince!"
-    JMP END_GAME       ; Salta alla fine del gioco
+                ; Game continues: No win, no draw
+                JSR SWITCH_PLAYER   ; Change the current player (X -> O or O -> X)
+                JMP GAME_LOOP       ; Jump back to start the next turn
 
-GAME_OVER_DRAW:        ; Fine Partita - Pareggio
-    JSR PRINT_BOARD    ; Mostra tavoliere finale
-    LDX #<STR_DRAW     ; Carica puntatore stringa "E' un pareggio!"
-    LDY #>STR_DRAW
-    JSR PRINT_STRING   ; Stampa "E' un pareggio!"
-    ; Passa a END_GAME (senza JMP esplicito)
+SQUARE_TAKEN:   ; Handle error: Player tried to select an occupied square
+                ; GETC already echoed the invalid number pressed by the player.
+                JSR PRINT_NEWLINE   ; Print a newline for better formatting
+                LDX #<STR_TAKEN     ; Load address of "Square already occupied!" message
+                LDY #>STR_TAKEN
+                JSR PRINT_STRING    ; Print the error message
+                JSR PRINT_NEWLINE   ; Print another newline
+                JMP GAME_LOOP       ; Go back to the start of the loop (reprint board/prompt)
 
-END_GAME:              ; Fine Gioco
-    JSR PRINT_NEWLINE
-    JSR PRINT_NEWLINE
-HALT:
-    BRK                ; Ferma l'esecuzione (o attiva il monitor)
-    ; JMP HALT
+GAME_OVER_WIN:  ; Handle game end: A player has won
+                STA ZP_TEMP1        ; Save the winning player's mark (X/O from CHECK_WIN)
+                JSR PRINT_BOARD     ; Show the final board state
+                JSR PRINT_NEWLINE
+                LDX #<STR_PLAYER    ; Print "Player "
+                LDY #>STR_PLAYER
+                JSR PRINT_STRING
+                LDA ZP_TEMP1        ; Retrieve the winner's mark
+                JSR PUTC            ; Print the mark (X or O)
+                LDA #' '            ; Print a space
+                JSR PUTC
+                LDX #<STR_WINS      ; Print " Wins!"
+                LDY #>STR_WINS
+                JSR PRINT_STRING
+                JMP END_GAME        ; Jump to common game end sequence
 
-;----------------------------------------------------
-; Sottoprogramma: INIT_GAME (Inizializza il gioco)
-;----------------------------------------------------
+GAME_OVER_DRAW: ; Handle game end: The game is a draw (board full, no winner)
+                JSR PRINT_BOARD     ; Show the final board state
+                LDX #<STR_DRAW      ; Load address of "It's a draw!" message
+                LDY #>STR_DRAW
+                JSR PRINT_STRING    ; Print the draw message
+                ; Fall through to END_GAME
+
+END_GAME:       ; Common actions after game ends (win or draw)
+                JSR PRINT_NEWLINE   ; Print a couple of newlines for spacing
+                JSR PRINT_NEWLINE
+HALT:           JMP $1EFD           ; Jump to the monitor (e.g., Wozmon)
+
+; Initialize the game state.
 INIT_GAME:
-    LDX #8             ; Indice per il loop (da 8 a 0)
-INIT_LOOP:
-    LDA #SPACE         ; Carica carattere spazio ($20)
-    STA BOARD,X        ; Salva nella posizione X del tavoliere
-    DEX                ; Decrementa indice
-    BPL INIT_LOOP      ; Continua finché X >= 0
-    LDA #PLAYER_X      ; Inizia con il giocatore X ($58)
-    STA CURPLAYER      ; Salva giocatore corrente
-    RTS                ; Ritorna dalla subroutine
+                LDX #8              ; Initialize loop counter for board positions (8 down to 0)
+INIT_LOOP:      LDA #SPACE          ; Load the SPACE character
+                STA BOARD,X         ; Store SPACE in the current board position
+                DEX                 ; Move to the previous board position
+                BPL INIT_LOOP       ; Loop until all 9 positions (0-8) are filled
+                LDA #PLAYER_X       ; Set the starting player to 'X'
+                STA ZP_CURPLAYER    ; Store 'X' in the zero page variable
+                RTS                 ; Return from subroutine
 
-;----------------------------------------------------
-; Sottoprogramma: PRINT_BOARD (Stampa il tavoliere)
-;----------------------------------------------------
+; Displays the Tic-Tac-Toe board on the terminal.
 PRINT_BOARD:
-    JSR PRINT_NEWLINE
-    ; Riga 0
-    LDA BOARD+0
-    JSR PUTC
-    LDA #$20  ; ' '
-    JSR PUTC
-    LDA #$7C  ; '|'
-    JSR PUTC
-    LDA #$20  ; ' '
-    JSR PUTC
-    LDA BOARD+1
-    JSR PUTC
-    LDA #$20  ; ' '
-    JSR PUTC
-    LDA #$7C  ; '|'
-    JSR PUTC
-    LDA #$20  ; ' '
-    JSR PUTC
-    LDA BOARD+2
-    JSR PUTC
-    JSR PRINT_NEWLINE
-    ; Separatore
-    LDX #<STR_SEPARATOR
-    LDY #>STR_SEPARATOR
-    JSR PRINT_STRING
-    JSR PRINT_NEWLINE
-    ; Riga 1
-    LDA BOARD+3
-    JSR PUTC
-    LDA #$20  ; ' '
-    JSR PUTC
-    LDA #$7C  ; '|'
-    JSR PUTC
-    LDA #$20  ; ' '
-    JSR PUTC
-    LDA BOARD+4
-    JSR PUTC
-    LDA #$20  ; ' '
-    JSR PUTC
-    LDA #$7C  ; '|'
-    JSR PUTC
-    LDA #$20  ; ' '
-    JSR PUTC
-    LDA BOARD+5
-    JSR PUTC
-    JSR PRINT_NEWLINE
-    ; Separatore
-    LDX #<STR_SEPARATOR
-    LDY #>STR_SEPARATOR
-    JSR PRINT_STRING
-    JSR PRINT_NEWLINE
-    ; Riga 2
-    LDA BOARD+6
-    JSR PUTC
-    LDA #$20  ; ' '
-    JSR PUTC
-    LDA #$7C  ; '|'
-    JSR PUTC
-    LDA #$20  ; ' '
-    JSR PUTC
-    LDA BOARD+7
-    JSR PUTC
-    LDA #$20  ; ' '
-    JSR PUTC
-    LDA #$7C  ; '|'
-    JSR PUTC
-    LDA #$20  ; ' '
-    JSR PUTC
-    LDA BOARD+8
-    JSR PUTC
-    JSR PRINT_NEWLINE
-    JSR PRINT_NEWLINE
-    RTS
+                JSR PRINT_NEWLINE   ; Start with a blank line
+                LDX #0              ; Set offset for the first row (board index 0)
+                JSR PRINT_ROW       ; Print the first row (indices 0, 1, 2)
+                JSR PRINT_SEP       ; Print the horizontal separator "---+---+---"
+                LDX #3              ; Set offset for the second row (board index 3)
+                JSR PRINT_ROW       ; Print the second row (indices 3, 4, 5)
+                JSR PRINT_SEP       ; Print the horizontal separator
+                LDX #6              ; Set offset for the third row (board index 6)
+                JSR PRINT_ROW       ; Print the third row (indices 6, 7, 8)
+                JSR PRINT_NEWLINE   ; Add an extra blank line after the board
+                RTS                 ; Return from subroutine
+
+; Helper routine to print one row of the board.
+PRINT_ROW:
+                LDA BOARD+0,X       ; Load character from first square of the row
+                JSR PUTC            ; Print it
+                LDA #' '            ; Load SPACE for separator
+                JSR PUTC
+                LDA #'|'            ; Load '|' for separator
+                JSR PUTC
+                LDA #' '            ; Load SPACE for separator
+                JSR PUTC
+                LDA BOARD+1,X       ; Load character from second square of the row
+                JSR PUTC            ; Print it
+                LDA #' '            ; Load SPACE for separator
+                JSR PUTC
+                LDA #'|'            ; Load '|' for separator
+                JSR PUTC
+                LDA #' '            ; Load SPACE for separator
+                JSR PUTC
+                LDA BOARD+2,X       ; Load character from third square of the row
+                JSR PUTC            ; Print it
+                JSR PRINT_NEWLINE   ; Print CR/LF to end the row
+                RTS                 ; Return from subroutine
+
 
 ;----------------------------------------------------
-; Sottoprogramma: PRINT_PROMPT (Stampa il prompt per il giocatore)
+; Helper routine to print the board's horizontal separator line.
+; Prints the string "---+---+---" followed by a newline.
 ;----------------------------------------------------
+PRINT_SEP:
+                LDX #<STR_SEPARATOR ; Load the address of the separator string
+                LDY #>STR_SEPARATOR
+                JSR PRINT_STRING    ; Print the "---+---+---" string
+                JSR PRINT_NEWLINE   ; Print CR/LF after the separator
+                RTS                 ; Return from subroutine
+
+; Display the prompt asking the current player for their move.
 PRINT_PROMPT:
-    LDX #<STR_PLAYER   ; Carica puntatore stringa "Giocatore "
-    LDY #>STR_PLAYER
-    JSR PRINT_STRING
-    LDA CURPLAYER      ; Carica simbolo giocatore corrente
-    JSR PUTC           ; Stampalo
-    LDX #<STR_TURN     ; Carica puntatore stringa ", inserisci mossa (1-9): "
-    LDY #>STR_TURN
-    JSR PRINT_STRING
-    RTS
+                LDX #<STR_PLAYER    ; Load address of "Player " string
+                LDY #>STR_PLAYER
+                JSR PRINT_STRING    ; Print "Player "
+                LDA ZP_CURPLAYER    ; Load the current player's mark from zero page
+                JSR PUTC            ; Print the mark ('X' or 'O')
+                LDX #<STR_TURN      ; Load address of ", enter move (1-9): " string
+                LDY #>STR_TURN
+                JSR PRINT_STRING    ; Print the rest of the prompt
+                RTS                 ; Return from subroutine
+
 
 ;----------------------------------------------------
-; Sottoprogramma: GET_MOVE (Ottiene la mossa dal giocatore)
+; Get a valid move ('1'-'9') from the player via the terminal.
+; Reads characters from the input routine (GETC), ignores control
+; characters (< SPACE), validates input is '1' through '9',
+; prints an error message for other invalid characters, and loops
+; until a valid digit is entered. Converts the valid digit to a
+; board index (0-8).
 ;----------------------------------------------------
 GET_MOVE:
-WAIT_INPUT_LOOP:
-    JSR GETC           ; Chiama CHRIN a $1800
-    BCC WAIT_INPUT_LOOP ; Torna indietro se Carry pulito (nessun tasto premuto)
+INPUT_LOOP:     JSR GETC            ; Call input routine at $1800 (assumed to echo)
+                BCC INPUT_LOOP      ; Loop if GETC indicates no character ready (Carry Clear)
 
-    ; Carattere ricevuto in A, CHRIN ha già fatto l'echo.
-    ; Controlla se input è tra '1' ($31) e '9' ($39)
-    CMP #$31           ; Confronta con ASCII '1'
-    BCC INVALID_CHAR   ; Salta se < '1' (non valido)
-    CMP #$3A           ; Confronta con ASCII '9' + 1
-    BCS INVALID_CHAR   ; Salta se > '9' (non valido)
+                ; Character received in A (Carry is Set), GETC supposedly echoed it.
 
-    ; Converti ASCII valido '1'-'9' in indice 0-8
-    SEC
-    SBC #$31           ; Sottrai codice ASCII di '1' per ottenere 0-8
-    RTS                ; Ritorna con indice 0-8 in A
+                ; Ignore any non-printing control characters (ASCII < $20)
+                CMP #SPACE          ; Compare with ASCII SPACE ($20)
+                BCC INPUT_LOOP      ; If A < SPACE, it's a control char (NULL, CR, LF, etc.) -> ignore and get next
 
-INVALID_CHAR:          ; Carattere non valido
-    ; Carattere non valido ricevuto ed echo fatto da CHRIN. Aggiungi nuova linea.
-    JSR PRINT_NEWLINE
-    LDA #$FF           ; Carica $FF per segnalare tipo carattere non valido
-    RTS
+                ; Character is printable (A >= SPACE). Check if it's '1' through '9'.
+                CMP #$31            ; Compare with ASCII '1'
+                BCC HANDLE_INVALID_TYPE ; If A < '1' (e.g., '0', SPACE, symbols), it's invalid
+
+                CMP #$3A            ; Compare with ASCII ':' (which is '9' + 1)
+                BCS HANDLE_INVALID_TYPE ; If A >= ':' (e.g., ':', ';', letters), it's invalid
+
+                ; Character is valid ('1' through '9').
+VALID_CHAR:     SEC                 ; Ensure Carry is set for subtraction (though GETC likely set it)
+                SBC #$31            ; Convert ASCII '1'..'9' to numerical index 0..8
+                RTS                 ; Return with the valid index 0-8 in A
+
+HANDLE_INVALID_TYPE:
+                ; Handle invalid printable characters (not '1'-'9').
+                ; GETC already echoed the invalid character.
+                JSR PRINT_NEWLINE   ; Print a newline for formatting after the bad echo
+                LDX #<STR_INVALID_TYPE ; Load address of "Invalid input..." message
+                LDY #>STR_INVALID_TYPE
+                JSR PRINT_STRING       ; Print the error message
+                JSR PRINT_NEWLINE      ; Print another newline
+                JMP INPUT_LOOP         ; Jump back to wait for more input (loop within GET_MOVE)
+
 
 ;----------------------------------------------------
-; Sottoprogramma: UPDATE_BOARD (Aggiorna il tavoliere)
-; Input: Indice 0-8 in A
+; Place the current player's mark on the board.
+; Writes the character stored in ZP_CURPLAYER to the BOARD location
+; indicated by the index in the Accumulator.
 ;----------------------------------------------------
 UPDATE_BOARD:
-    TAX                ; Usa A (indice) come offset in X
-    LDA CURPLAYER      ; Carica il simbolo del giocatore corrente ('X' o 'O')
-    STA BOARD,X        ; Scrivi il simbolo sul tavoliere all'indice X
-    RTS
+                TAX                 ; Transfer the index from A to X for indexed addressing
+                LDA ZP_CURPLAYER    ; Load the current player's mark ('X' or 'O')
+                STA BOARD,X         ; Store the mark onto the board at the specified index
+                RTS                 ; Return from subroutine
+
 
 ;----------------------------------------------------
-; Sottoprogramma: CHECK_WIN (Controlla se c'è una vittoria)
-; Ritorna: Simbolo vincitore (X/O) in A, o SPAZIO se nessuna vittoria.
+; Check if any player has won the game.
+; Examines all rows, columns, and diagonals on the BOARD for
+; three identical marks (X or O, not SPACE).
 ;----------------------------------------------------
 CHECK_WIN:
-    LDX #0             ; Indice per controllare righe/colonne (inizia da 0)
-CHECK_ROW_LOOP:        ; Controlla Righe (0-2, 3-5, 6-8)
-    LDA BOARD+0,X      ; Carica casella 1 della riga (indici 0, 3, 6)
-    CMP #SPACE         ; È vuota?
-    BEQ NEXT_ROW       ; Se vuota, la riga non può essere vincente, passa alla prossima
-    CMP BOARD+1,X      ; Confronta con casella 2 (indici 1, 4, 7)
-    BNE NEXT_ROW       ; Se diverse, non c'è vittoria, passa alla prossima
-    CMP BOARD+2,X      ; Confronta con casella 3 (indici 2, 5, 8)
-    BNE NEXT_ROW       ; Se diverse, non c'è vittoria, passa alla prossima
-    RTS                ; Se uguali, A contiene il simbolo vincente. Ritorna.
-NEXT_ROW:
-    TXA                ; Sposta l'indice X in A
-    CLC
-    ADC #3             ; Aggiungi 3 per passare all'inizio della riga successiva (0->3, 3->6)
-    TAX                ; Rimetti in X
-    CPX #9             ; Abbiamo controllato la riga che inizia con 6? (Indice sarebbe 9)
-    BCC CHECK_ROW_LOOP ; Se indice < 9, controlla la prossima riga
+                LDX #0              ; Initialize index for checking rows (start at index 0)
+CHECK_ROW:      ; Check row starting at BOARD+0,X / BOARD+1,X / BOARD+2,X
+                LDA BOARD+0,X       ; Load the first square of the current row
+                CMP #SPACE          ; Is the first square empty?
+                BEQ CHECK_NEXT_ROW  ; If yes, this row cannot be a winning row, skip to next
+                CMP BOARD+1,X       ; Compare first square with the second square
+                BNE CHECK_NEXT_ROW  ; If not equal, not a winning row, skip to next
+                CMP BOARD+2,X       ; Compare first square with the third square
+                BNE CHECK_NEXT_ROW  ; If not equal, not a winning row, skip to next
+                ; If we reach here, all three squares match and are not SPACE.
+                RTS                 ; Return; A already holds the winning player's mark
 
-    LDX #0             ; Resetta indice per controllo colonne
-CHECK_COL_LOOP:        ; Controlla Colonne (0,3,6 / 1,4,7 / 2,5,8)
-    LDA BOARD+0,X      ; Carica casella 1 della colonna (indici 0, 1, 2)
-    CMP #SPACE
-    BEQ NEXT_COL       ; Se vuota, passa alla prossima colonna
-    CMP BOARD+3,X      ; Confronta con casella 2 (indici 3, 4, 5)
-    BNE NEXT_COL
-    CMP BOARD+6,X      ; Confronta con casella 3 (indici 6, 7, 8)
-    BNE NEXT_COL
-    RTS                ; Se uguali, A contiene il vincitore. Ritorna.
-NEXT_COL:
-    INX                ; Passa alla prossima colonna (0->1, 1->2)
-    CPX #3             ; Abbiamo controllato la colonna 2? (Indice sarebbe 3)
-    BCC CHECK_COL_LOOP ; Se indice < 3, controlla prossima colonna
+CHECK_NEXT_ROW: TXA                 ; Move current row offset from X to A
+                CLC                 ; Clear Carry for addition
+                ADC #3              ; Add 3 to move to the next row's starting index (0 -> 3 -> 6)
+                TAX                 ; Put the new offset back in X
+                CPX #9              ; Have we checked offsets 0, 3, and 6 (i.e., is new offset 9)?
+                BCC CHECK_ROW       ; If X < 9, loop back to check the next row
 
-    ; Controlla Diagonali
-    ; Diagonale 1 (0, 4, 8)
-    LDA BOARD+0
-    CMP #SPACE
-    BEQ CHK_D2         ; Se vuota, controlla l'altra diagonale
-    CMP BOARD+4
-    BNE CHK_D2
-    CMP BOARD+8
-    BNE CHK_D2
-    RTS                ; A contiene il vincitore (da BOARD+0)
-CHK_D2:
-    ; Diagonale 2 (2, 4, 6)
-    LDA BOARD+2
-    CMP #SPACE
-    BEQ NO_WIN         ; Se vuota, nessuna vittoria
-    CMP BOARD+4
-    BNE NO_WIN
-    CMP BOARD+6
-    BNE NO_WIN
-    RTS                ; A contiene il vincitore (da BOARD+2)
-NO_WIN:                ; Nessuna vittoria trovata
-    LDA #SPACE
-    RTS
+                LDX #0              ; Initialize index for checking columns (start at index 0)
+CHECK_COL:      ; Check column BOARD+0,X / BOARD+3,X / BOARD+6,X
+                LDA BOARD+0,X       ; Load the top square of the current column
+                CMP #SPACE          ; Is the square empty?
+                BEQ CHECK_NEXT_COL  ; If yes, this column cannot be a winning one, skip to next
+                CMP BOARD+3,X       ; Compare top square with the middle square
+                BNE CHECK_NEXT_COL  ; If not equal, not a winning column, skip to next
+                CMP BOARD+6,X       ; Compare top square with the bottom square
+                BNE CHECK_NEXT_COL  ; If not equal, not a winning column, skip to next
+                ; If we reach here, all three squares match and are not SPACE.
+                RTS                 ; Return; A already holds the winning player's mark
+
+CHECK_NEXT_COL: INX                 ; Move to the next column index (0 -> 1 -> 2)
+                CPX #3              ; Have we checked columns 0, 1, and 2 (i.e., is new index 3)?
+                BCC CHECK_COL       ; If X < 3, loop back to check the next column
+
+                ; Check Diagonals
+                LDA BOARD+0         ; Load top-left square (for diagonal 0, 4, 8)
+                CMP #SPACE
+                BEQ CHK_D2          ; If empty, this diagonal cannot win, check the other
+                CMP BOARD+4         ; Compare with middle square
+                BNE CHK_D2          ; If not equal, check the other diagonal
+                CMP BOARD+8         ; Compare with bottom-right square
+                BNE CHK_D2          ; If not equal, check the other diagonal
+                RTS                 ; Win found on first diagonal; A has the mark
+
+CHK_D2:         LDA BOARD+2         ; Load top-right square (for diagonal 2, 4, 6)
+                CMP #SPACE
+                BEQ NO_WIN          ; If empty, this diagonal cannot win
+                CMP BOARD+4         ; Compare with middle square
+                BNE NO_WIN          ; If not equal, no win
+                CMP BOARD+6         ; Compare with bottom-left square
+                BNE NO_WIN          ; If not equal, no win
+                RTS                 ; Win found on second diagonal; A has the mark
+
+NO_WIN:         LDA #SPACE          ; No win found on rows, columns, or diagonals
+                RTS                 ; Return SPACE in A
+
 
 ;----------------------------------------------------
-; Sottoprogramma: CHECK_DRAW (Controlla se c'è un pareggio - tavoliere pieno)
-; Ritorna: Carry IMPOSTATO se pareggio, Carry PULITO altrimenti
+; Check if game is a draw (board full, no winner).
+; Scans the entire BOARD for any remaining SPACE characters.
+; Assumes CHECK_WIN was called first and returned SPACE.
 ;----------------------------------------------------
 CHECK_DRAW:
-    LDX #8             ; Indice per controllare da 8 a 0
-CHECK_DRAW_LOOP:
-    LDA BOARD,X        ; Carica casella X
-    CMP #SPACE         ; È uno spazio vuoto?
-    BEQ NOT_DRAW       ; Se sì, non è pareggio, esci
-    DEX                ; Decrementa indice
-    BPL CHECK_DRAW_LOOP ; Se indice >= 0, continua controllo
-    ; Se il loop finisce, non ci sono spazi vuoti -> Pareggio
-    SEC                ; Imposta Carry per segnalare pareggio
-    RTS
-NOT_DRAW:              ; Trovato uno spazio, non è pareggio
-    CLC                ; Pulisci Carry
-    RTS
+                LDX #8              ; Initialize index to check board from end (8 down to 0)
+CHECK_DRAW_LOOP:LDA BOARD,X         ; Load character from current board position
+                CMP #SPACE          ; Is it a SPACE?
+                BEQ NOT_DRAW        ; If yes, the board is not full -> Branch to exit (not a draw)
+                DEX                 ; Move to the previous board position
+                BPL CHECK_DRAW_LOOP ; Loop if index is still >= 0
+                ; If loop completes without finding a SPACE, the board is full.
+                SEC                 ; Set Carry flag to indicate a draw condition
+                RTS
+NOT_DRAW:       CLC                 ; Clear Carry flag to indicate not a draw (found a SPACE)
+                RTS
+
 
 ;----------------------------------------------------
-; Sottoprogramma: SWITCH_PLAYER (Cambia il giocatore corrente)
+; Toggle current player between 'X' and 'O'.
+; Reads the current player mark from ZP_CURPLAYER, performs an
+; Exclusive OR (EOR) with FLIP_MASK to change it to the other
+; player's mark, and stores it back.
 ;----------------------------------------------------
-SWITCH_PLAYER:
-    LDA CURPLAYER      ; Carica giocatore attuale
-    EOR #FLIP_MASK     ; Applica XOR con maschera $17 per alternare tra X($58) e O ($4F)
-    STA CURPLAYER      ; Salva il nuovo giocatore corrente
-    RTS
+SWITCH_PLAYER:  LDA ZP_CURPLAYER    ; Load the current player's mark
+                EOR #FLIP_MASK      ; Toggle between 'X' ($58) and 'O' ($4F) using XOR mask $17
+                STA ZP_CURPLAYER    ; Store the new player's mark back to zero page
+                RTS                 ; Return from subroutine
+
 
 ;----------------------------------------------------
-; Sottoprogramma: PRINT_STRING (Stampa una stringa terminata da zero)
-; Input: Byte basso indirizzo in X, Byte alto in Y
-; Modifica: A, Y, ZP_PTR, ZP_PTR_HI
+; PRINT_STRING: Prints a null-terminated string to the terminal.
+; Purpose: Iterates through memory starting at the address specified by
+;          (ZP_PTR_HI, ZP_PTR) and prints each character using PUTC until
+;          a null byte ($00) is encountered.
+; Input:   X = Low byte of string start address.
+;          Y = High byte of string start address.
+; Output:  Prints string characters to terminal via PUTC.
+; Modifies: ZP_PTR, ZP_PTR_HI, Calls PUTC.
+; Registers Used: A, Y, (ZP_PTR, ZP_PTR_HI implicitly)
+; Preserves: X
+; Notes:   Assumes strings are less than 256 bytes due to 8-bit index (Y).
 ;----------------------------------------------------
-PRINT_STRING:
-    STX ZP_PTR         ; Salva byte basso puntatore in pagina zero
-    STY ZP_PTR_HI      ; Salva byte alto puntatore in pagina zero
-    LDY #0             ; Indice Y inizia da 0
-PRINT_LOOP:
-    LDA (ZP_PTR),Y     ; Carica carattere usando indirizzamento indiretto indicizzato
-    BEQ PRINT_DONE     ; Se è il byte zero (fine stringa), esci
-    JSR PUTC           ; Stampa il carattere
-    INY                ; Incrementa indice Y
-    BNE PRINT_LOOP     ; Continua (Assume stringa < 256 byte / non serve gestione cambio pagina)
-PRINT_DONE:
-    RTS
+PRINT_STRING:   STX ZP_PTR          ; Store low byte of address in zero page pointer
+                STY ZP_PTR_HI       ; Store high byte of address in zero page pointer
+                LDY #0              ; Initialize index Y to 0 for indirect indexed addressing
+PRINT_LOOP:     LDA (ZP_PTR),Y      ; Load character using (ZP_PTR) as base address + Y offset
+                BEQ PRINT_DONE      ; If character is $00 (null terminator), we are done
+                JSR PUTC            ; Print the character
+                INY                 ; Increment the index Y
+                BNE PRINT_LOOP      ; Branch back to print next character (implicitly checks Y != 0)
+                                    ; Assumes string length < 256 bytes, otherwise Y wraps around.
+PRINT_DONE:     RTS                 ; Return from subroutine
+
 
 ;----------------------------------------------------
-; Sottoprogramma: PRINT_NEWLINE (Stampa ritorno a capo + nuova linea)
+; Print Carriage Return (CR) and Line Feed (LF).
 ;----------------------------------------------------
-PRINT_NEWLINE:
-    LDA #CR            ; Carica Ritorno a Capo ($0D)
-    JSR PUTC
-    LDA #LF            ; Carica Nuova Linea ($0A)
-    JSR PUTC
-    RTS
+PRINT_NEWLINE:  LDA #CR             ; Load Carriage Return character ($0D)
+                JSR PUTC            ; Print CR
+                LDA #LF             ; Load Line Feed character ($0A)
+                JSR PUTC            ; Print LF
+                RTS                 ; Return from subroutine
 
-;----------------------------------------------------
-; --- Area Dati ---
-;----------------------------------------------------
-CURPLAYER:  .BYTE PLAYER_X ; $58 - Giocatore Corrente
-BOARD:      .DS 9            ; 9 byte per il tavoliere (Definisci Spazio)
 
-; --- Stringhe Messaggi (Italiano, ASCII 7-bit) ---
-STR_PLAYER: .BYTE $47,$69,$6F,$63,$61,$74,$6F,$72,$65,$20, 0 ; "Giocatore "
-STR_TURN:   .BYTE $2C,$20,$69,$6E,$73,$65,$72,$69,$73,$63,$69,$20,$6D,$6F,$73,$73,$61,$20,$28,$31,$2D,$39,$29,$3A,$20, 0 ; ", inserisci mossa (1-9): "
-STR_SEPARATOR:.BYTE $2D,$2D,$2D,$2B,$2D,$2D,$2D,$2B,$2D,$2D,$2D, 0 ; "---+---+---" (Grafico, mantenuto)
-STR_WINS:   .BYTE $20,$56,$69,$6E,$63,$65,$21, 0 ; " Vince!"
-STR_DRAW:   .BYTE $45,$27,$20,$75,$6E,$20,$70,$61,$72,$65,$67,$67,$69,$6F,$21, 0 ; "E' un pareggio!"
-STR_TAKEN:  .BYTE $43,$61,$73,$65,$6C,$6C,$61,$20,$67,$69,$61,$27,$20,$6F,$63,$63,$75,$70,$61,$74,$61,$21, 0 ; "Casella gia' occupata!"
+; --- Data ---
+BOARD:          .DS 9                   ; Reserve 9 bytes for the board
 
-; --- Fine Programma ---
+; --- Message Strings (Zero/Null Terminated ASCII) ---
+STR_PLAYER:    .ASCII "Player ", 0
+STR_TURN:      .ASCII ", enter move (1-9): ", 0
+STR_SEPARATOR: .ASCII "---+---+---", 0
+STR_WINS:      .ASCII " Wins!", 0
+STR_DRAW:      .ASCII "It's a draw!", 0
+STR_TAKEN:     .ASCII "Square already occupied!", 0
+STR_INVALID_TYPE:.ASCII "Invalid input. Please use 1-9.", 0
