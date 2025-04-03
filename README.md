@@ -8,4 +8,4 @@ SBC realizzato con il processore 6507 (famiglia del 6502)
 interfaccia seriale
 1x 6522 VIA
 
-hexdump -e '"1%03_ax: " 16/1 "%02X " "\n"' <PROGRAMMA>.bin | awk '{print toupper($0)}'
+hexdump -e '"%04_ax:" 16/1 "%02X " "\n"' <file>.bin | awk -F: '{addr_str = $1; addr_dec = sprintf("%d", "0x" addr_str); new_addr_dec = addr_dec + 1280; printf "%04X:%s\n", new_addr_dec, $2}' | awk '{print toupper($0)}'
